@@ -1,0 +1,37 @@
+# ros_gz_bridge config: YAML list of bridge entries
+# Syntax: ros_topic_name + gz_topic_name for remapping, or topic_name for pass-through
+
+- ros_topic_name: "/camera/color/image_raw"
+  gz_topic_name: "/rgbd_camera/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/camera/depth/image_raw"
+  gz_topic_name: "/rgbd_camera/depth_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/camera/color/camera_info"
+  gz_topic_name: "/rgbd_camera/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/camera/depth/points"
+  gz_topic_name: "/rgbd_camera/depth_image/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: "GZ_TO_ROS"
+
+- topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/world/grasp_world/set_pose"
+  gz_topic_name: "/world/grasp_world/set_pose"
+  ros_type_name: "geometry_msgs/msg/Pose"
+  gz_type_name: "gz.msgs.Pose"
+  direction: "ROS_TO_GZ"

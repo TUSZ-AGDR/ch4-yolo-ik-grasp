@@ -1,0 +1,20 @@
+# ROS2 / colcon outputs when building from the repository root
+build/
+install/
+log/
+
+# Python runtime and packaging caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Editor temporary files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db

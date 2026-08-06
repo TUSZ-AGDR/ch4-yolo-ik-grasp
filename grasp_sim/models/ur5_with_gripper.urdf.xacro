@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/xacro" name="$(arg name)">
+  <!--
+    Combined UR5 + Robotiq 2F-85 parallel-jaw gripper URDF.
+    - ur_macro.xacro with generate_ros2_control_tag set to false
+    - Robotiq 2F-85 via official robotiq_description macros
+    - Single unified <ros2_control> tag for all 12 joints (6 arm + 6 gripper)
+      where 5 of the 6 gripper joints are mimic joints synced at the
+      control level by gz_ros2_control (no DART required).
+    - Single <gazebo> plugin for Gazebo Sim ROS 2 control (Harmonic).
+  -->
+
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/ur_to_robotiq_adapter.urdf.xacro"/>
+
+  <!-- ── Arguments (mirror ur.urdf.xacro) ──────────────────── -->
+  <xacro:arg name="name" default="ur5"/>
+  <xacro:arg name="ur_type" default="ur5"/>
+  <xacro:arg name="tf_prefix" default=""/>
+  <xacro:arg name="joint_limit_params"
+             default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_params"
+             default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_params"
+             default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_params"
+             default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+  <xacro:arg name="safety_limits" default="false"/>
+  <xacro:arg name="safety_pos_margin" default="0.15"/>
+  <xacro:arg name="safety_k_position" default="20"/>
+  <xacro:arg name="sim_ignition" default="false"/>
+  <xacro:arg name="sim_gazebo" default="false"/>
+  <xacro:arg name="simulation_controllers" default=""/>
+  <xacro:arg name="initial_positions_file"
+             default="$(find ur_description)/config/initial_positions.yaml"/>
+
+  <xacro:property name="initial_positions_file" default="$(arg initial_positions_file)"/>
+
+  <xacro:property name="is_sim_ignition" value="$(arg sim_ignition)"/>
+  <xacro:property name="is_sim_gazebo" value="$(arg sim_gazebo)"/>
+
+  <!-- ── world + ground plane ──────────────────────────────── -->
+  <link name="world"/>
+
+  <xacro:if value="${is_sim_ignition or is_sim_gazebo}">
+    <link name="ground_plane">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry><box size="5 5 0"/></geometry>
+        <material name="ground_white"><color rgba="1 1 1 0.5"/></material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry><box size="5 5 0"/></geometry>
+      </collision>
+    </link>
+    <joint name="ground_plane_joint" type="fixed">
+      <origin xyz="0 0 -0.01" rpy="0 0 0"/>
+      <parent link="world"/>
+      <child link="ground_plane"/>
+    </joint>
+  </xacro:if>
+
+  <!-- ── UR5 arm ───────────────────────────────────────────── -->
+  <xacro:ur_robot
+    name="$(arg name)"
+    tf_prefix="$(arg tf_prefix)"
+    parent="world"
+    joint_limits_parameters_file="$(arg joint_limit_params)"
+    kinematics_parameters_file="$(arg kinematics_params)"
+    physical_parameters_file="$(arg physical_params)"
+    visual_parameters_file="$(arg visual_params)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+    sim_ignition="$(arg sim_ignition)"
+    sim_gazebo="$(arg sim_gazebo)"
+    generate_ros2_control_tag="false"
+    initial_positions="${xacro.load_yaml(initial_positions_file)}">
+    <origin xyz="-0.1 0 0.80" rpy="0 0 0"/>
+  </xacro:ur_robot>
+
+  <!-- ── Robotiq 2F-85 gripper on tool0 ────────────── -->
+  <!-- ur_to_robotiq adapter: tool0 → ur_to_robotiq_link → gripper_mount_link -->
+  <xacro:ur_to_robotiq prefix="" connected_to="tool0"/>
+
+  <!-- robotiq_gripper macro:
+       include_ros2_control:=false because the official ros2_control xacro
+       hardcodes the Fortress plugin (ign_ros2_control/IgnitionSystem); we
+       declare the 6 robotiq joints in the unified <ros2_control> block below. -->
+  <xacro:robotiq_gripper
+      name="robotiq_gripper" prefix="" parent="gripper_mount_link"
+      sim_ignition="false" sim_isaac="false"
+      use_fake_hardware="false" include_ros2_control="false">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:robotiq_gripper>
+
+  <!-- ── Unified ros2_control (12 joints: 6 arm + 1 main + 5 mimic) ───────────────────── -->
+  <ros2_control name="$(arg name)" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <joint name="shoulder_pan_joint">
+      <param name="p_gain">100.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="shoulder_lift_joint">
+      <param name="p_gain">100.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">-1.57</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="elbow_joint">
+      <param name="p_gain">100.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wrist_1_joint">
+      <param name="p_gain">100.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">-1.57</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wrist_2_joint">
+      <param name="p_gain">100.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wrist_3_joint">
+      <param name="p_gain">100.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- ── Robotiq 2F-85 main driving joint ──────────────────── -->
+    <!-- revolute [0, 0.8] rad, 0=open, 0.8=closed.
+         5 mimic joints below are propagated by gz_ros2_control's
+         MimicJoint controller-level sync (gz_system.cpp:884-911) — no
+         physics-engine mimic constraints needed (ODE doesn't support them). -->
+    <joint name="robotiq_85_left_knuckle_joint">
+      <param name="p_gain">500.0</param>
+      <command_interface name="position"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- 5 mimic joints — gz_ros2_control syncs every tick.
+         Multipliers match /opt/ros/humble/share/robotiq_description/
+         urdf/robotiq_gripper.ros2_control.xacro:50,60,68,77,86 -->
+    <joint name="robotiq_85_right_knuckle_joint">
+      <param name="mimic">robotiq_85_left_knuckle_joint</param>
+      <param name="multiplier">-1</param>
+    </joint>
+    <joint name="robotiq_85_left_inner_knuckle_joint">
+      <param name="mimic">robotiq_85_left_knuckle_joint</param>
+      <param name="multiplier">1</param>
+    </joint>
+    <joint name="robotiq_85_right_inner_knuckle_joint">
+      <param name="mimic">robotiq_85_left_knuckle_joint</param>
+      <param name="multiplier">-1</param>
+    </joint>
+    <joint name="robotiq_85_left_finger_tip_joint">
+      <param name="mimic">robotiq_85_left_knuckle_joint</param>
+      <param name="multiplier">-1</param>
+    </joint>
+    <joint name="robotiq_85_right_finger_tip_joint">
+      <param name="mimic">robotiq_85_left_knuckle_joint</param>
+      <param name="multiplier">1</param>
+    </joint>
+  </ros2_control>
+
+  <!-- ── Gazebo Ignition plugin ────────────────────────────── -->
+  <xacro:if value="$(arg sim_ignition)">
+    <gazebo>
+      <plugin filename="libgz_ros2_control-system.so"
+              name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <ros>
+          <parameter name="position_proportional_gain" type="double">100.0</parameter>
+        </ros>
+        <parameters>$(arg simulation_controllers)</parameters>
+        <controller_manager_node_name>controller_manager</controller_manager_node_name>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+
+</robot>

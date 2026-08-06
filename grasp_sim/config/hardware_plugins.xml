@@ -1,0 +1,28 @@
+<library path="/opt/ros/humble/lib/libgz_hardware_plugins.so">
+  <!--
+    Re-export gz_ros2_control hardware plugins with the correct base class
+    for ros2_control's ResourceManager.
+
+    The upstream gz_ros2_control package registers these with base class
+    gz_ros2_control::GazeboSimSystemInterface, but hardware_interface::ResourceManager
+    uses pluginlib::ClassLoader<hardware_interface::SystemInterface>.
+    Since GazeboSimSystemInterface inherits from SystemInterface, we re-register
+    them with the parent base class.
+  -->
+  <class
+    name="ign_ros2_control/IgnitionSystem"
+    type="ign_ros2_control::IgnitionSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Ignition Gazebo ros2_control hardware component (compatibility name).
+    </description>
+  </class>
+  <class
+    name="gz_ros2_control/GazeboSimSystem"
+    type="gz_ros2_control::GazeboSimSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Gazebo ros2_control hardware component.
+    </description>
+  </class>
+</library>
