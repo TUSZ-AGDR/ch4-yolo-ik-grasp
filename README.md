@@ -12,7 +12,7 @@ YOLO 检测桌面物体 → 深度查表 + 针孔投影获取 3D 位置 → Move
 | ROS2 | Humble |
 | Gazebo | Harmonic |
 | YOLO | ultralytics（系统 python3.10） |
-| GPU | 推荐 NVIDIA（无 GPU 走 CPU） |
+| GPU | 推荐 NVIDIA（YOLO 默认 `cuda:0`；无 GPU 时运行命令加 `-p device:=cpu`） |
 
 ## 部署
 
@@ -80,12 +80,13 @@ git clone --depth 1 -b humble https://github.com/ros-controls/gz_ros2_control.gi
 #   git -c http.version=HTTP/1.1 clone --depth 1 -b humble \
 #       https://github.com/ros-controls/gz_ros2_control.git
 
-# 解压本仓库（把 ur5-yolo-grasp.tar.gz 放到 ~/grasp_ws/src/ 下）
-tar xzf ur5-yolo-grasp.tar.gz
+# 克隆本仓库
+git clone --depth 1 https://github.com/TUSZ-AGDR/ch4-yolo-ik-grasp.git
+# （若仓库地址变了，用实际 URL 替换）
 
 # 创建软链（colcon 要求 ROS2 包直接在 src/ 下）
-ln -s ur5-yolo-grasp/grasp_sim grasp_sim
-ln -s ur5-yolo-grasp/yolo_vision yolo_vision
+ln -s ch4-yolo-ik-grasp/grasp_sim grasp_sim
+ln -s ch4-yolo-ik-grasp/yolo_vision yolo_vision
 ```
 
 ### 4. 编译并首次启动
@@ -101,11 +102,11 @@ colcon build --symlink-install \
 source install/setup.bash
 
 # —— 预生成 URDF/SRDF（只需首次）——
-xacro ~/grasp_ws/src/ur5-yolo-grasp/grasp_sim/models/ur5_with_gripper.urdf.xacro \
+xacro ~/grasp_ws/src/ch4-yolo-ik-grasp/grasp_sim/models/ur5_with_gripper.urdf.xacro \
   name:=ur5 ur_type:=ur5 safety_limits:=false sim_ignition:=true sim_gazebo:=false \
   simulation_controllers:=$(ros2 pkg prefix grasp_sim)/share/grasp_sim/config/ros2_control.yaml \
   -o /tmp/ur5.urdf
-xacro ~/grasp_ws/src/ur5-yolo-grasp/grasp_sim/config/ur5_gripper.srdf.xacro \
+xacro ~/grasp_ws/src/ch4-yolo-ik-grasp/grasp_sim/config/ur5_gripper.srdf.xacro \
   name:=ur5 -o /tmp/ur5.srdf
 
 # —— 一键启动 ——
@@ -125,7 +126,7 @@ source /opt/ros/humble/setup.bash && source ~/grasp_ws/install/setup.bash
 export GZ_VERSION=harmonic GZ_SIM_RESOURCE_PATH="/opt/ros/humble/share"
 ros2 launch grasp_sim sim.launch.py 2>&1 | tee /tmp/launch.log
 
-# 终端 2 — YOLO 检测
+# 终端 2 — YOLO 检测（无 GPU 时命令末尾加 -p device:=cpu）
 source /opt/ros/humble/setup.bash && source ~/grasp_ws/install/setup.bash
 ros2 run yolo_vision detector --ros-args -p model:=best.pt -p confidence:=0.5
 
@@ -171,7 +172,7 @@ pkill -f "move_group"
 ## 项目结构
 
 ```
-ur5-yolo-grasp/
+ch4-yolo-ik-grasp/
 ├── grasp_sim/              # 仿真包 (ament_cmake)
 │   ├── config/             # ros2_control / SRDF / 桥接 / kinematics
 │   ├── models/             # UR5 + Robotiq 合并 URDF (xacro)
@@ -184,11 +185,6 @@ ur5-yolo-grasp/
 ├── ur5-yolo-grasp-demo.mp4 # 抓取演示视频
 └── README.md
 ```
-
-## 文档
-
-- [LAB.md](LAB.md) — 部署指南（操作型）
-- [TEXTBOOK.md](TEXTBOOK.md) — 教材（架构原理）
 
 ## 致谢
 
